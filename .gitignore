@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+vendor/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+build/
+*.egg-info/
+
+# Generated SDKs (users generate these into their own projects)
+output/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Logs
+*.log
+sample-app/.env

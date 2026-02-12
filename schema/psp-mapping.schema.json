@@ -1,0 +1,444 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/basistheory/psp-orchestration-kit/schema/psp-mapping.schema.json",
+  "title": "PSP Mapping",
+  "description": "Declarative mapping file that describes how a payment service provider's API maps to the unified payment model.",
+  "type": "object",
+  "required": ["version", "psp", "authentication", "source_types", "operations", "status_mappings", "error_mappings", "amount_format"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema file for editor validation."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version of this mapping file."
+    },
+    "psp": {
+      "$ref": "#/$defs/psp"
+    },
+    "authentication": {
+      "$ref": "#/$defs/authentication"
+    },
+    "source_types": {
+      "$ref": "#/$defs/source_types"
+    },
+    "operations": {
+      "$ref": "#/$defs/operations"
+    },
+    "status_mappings": {
+      "$ref": "#/$defs/status_mappings"
+    },
+    "error_mappings": {
+      "$ref": "#/$defs/error_mappings"
+    },
+    "amount_format": {
+      "$ref": "#/$defs/amount_format"
+    },
+    "recurring": {
+      "$ref": "#/$defs/recurring"
+    },
+    "three_ds": {
+      "$ref": "#/$defs/three_ds"
+    },
+    "setup": {
+      "$ref": "#/$defs/setup"
+    }
+  },
+  "$defs": {
+    "psp": {
+      "type": "object",
+      "description": "Identifies the payment service provider and its API surface.",
+      "required": ["name", "display_name", "base_urls", "api_version", "docs_url", "content_type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Machine-readable identifier used in file names and code generation (e.g., 'adyen', 'checkout')."
+        },
+        "display_name": {
+          "type": "string",
+          "description": "Human-readable name (e.g., 'Adyen', 'Checkout.com')."
+        },
+        "base_urls": {
+          "type": "object",
+          "required": ["test", "live"],
+          "additionalProperties": false,
+          "properties": {
+            "test": {
+              "type": "string",
+              "format": "uri",
+              "description": "Sandbox / test environment base URL."
+            },
+            "live": {
+              "type": "string",
+              "description": "Production base URL. May contain {{placeholders}} for merchant-specific prefixes."
+            }
+          }
+        },
+        "api_version": {
+          "type": "string",
+          "description": "API version string included in URLs or headers (e.g., 'v71', '2023-01-01')."
+        },
+        "docs_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Link to the PSP's primary API documentation."
+        },
+        "content_type": {
+          "type": "string",
+          "default": "application/json",
+          "description": "Content-Type header for all requests."
+        },
+        "idempotency_header": {
+          "type": "string",
+          "description": "Name of the HTTP header used for idempotency keys (e.g., 'Idempotency-Key', 'Cko-Idempotency-Key'). If absent, defaults to 'Idempotency-Key'."
+        }
+      }
+    },
+    "authentication": {
+      "type": "object",
+      "description": "How the PSP authenticates API requests.",
+      "required": ["type", "header_name", "config_fields"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["api_key", "bearer_token", "basic_auth"],
+          "description": "Authentication mechanism."
+        },
+        "header_name": {
+          "type": "string",
+          "description": "HTTP header that carries the credential (e.g., 'X-API-Key', 'Authorization')."
+        },
+        "header_prefix": {
+          "type": "string",
+          "description": "Optional prefix before the credential value (e.g., 'Bearer', 'Basic')."
+        },
+        "config_fields": {
+          "type": "array",
+          "description": "Configuration fields the SDK needs at initialization time.",
+          "items": {
+            "type": "object",
+            "required": ["name", "description", "required"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Field name used in SDK config (e.g., 'api_key', 'merchant_account')."
+              },
+              "description": {
+                "type": "string"
+              },
+              "required": {
+                "type": "boolean"
+              },
+              "env_var": {
+                "type": "string",
+                "description": "Suggested environment variable name."
+              }
+            }
+          }
+        }
+      }
+    },
+    "source_type_entry": {
+      "type": "object",
+      "description": "Describes how a particular payment source type maps to this PSP's API.",
+      "required": ["request_transform"],
+      "additionalProperties": false,
+      "properties": {
+        "request_transform": {
+          "type": "object",
+          "description": "Key-value pairs mapping PSP request fields to values. Use dot-notation for nested fields, {{placeholder}} for dynamic values.",
+          "additionalProperties": {
+            "type": ["string", "boolean", "number"]
+          }
+        },
+        "requires_pci": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this source type requires PCI-scoped infrastructure to handle raw card data."
+        },
+        "detokenization_strategy": {
+          "type": "string",
+          "enum": ["basis_theory_proxy", "server_side"],
+          "description": "How tokenized card data is resolved before sending to the PSP."
+        },
+        "proxy_config": {
+          "type": "object",
+          "description": "Configuration for Basis Theory proxy when detokenization_strategy is 'basis_theory_proxy'.",
+          "additionalProperties": false,
+          "properties": {
+            "transform_expression_prefix": {
+              "type": "string",
+              "description": "Expression prefix used in proxy templates (e.g., 'token', 'token_intent')."
+            },
+            "card_field_mappings": {
+              "type": "object",
+              "description": "Maps unified card fields to the PSP's expected field paths.",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "source_types": {
+      "type": "object",
+      "description": "Defines how each of the 5 payment source types maps to this PSP.",
+      "additionalProperties": false,
+      "properties": {
+        "raw_pan": {
+          "$ref": "#/$defs/source_type_entry",
+          "description": "Raw card number, expiry, and CVC provided directly. Requires PCI scope."
+        },
+        "basis_theory_token": {
+          "$ref": "#/$defs/source_type_entry",
+          "description": "Stored Basis Theory token detokenized via proxy at payment time."
+        },
+        "basis_theory_token_intent": {
+          "$ref": "#/$defs/source_type_entry",
+          "description": "Ephemeral Basis Theory token intent detokenized via proxy at payment time."
+        },
+        "network_token": {
+          "$ref": "#/$defs/source_type_entry",
+          "description": "Network token (DPAN) with cryptogram from card networks."
+        },
+        "processor_token": {
+          "$ref": "#/$defs/source_type_entry",
+          "description": "Token previously stored with this PSP (e.g., Adyen storedPaymentMethodId, Checkout.com source ID)."
+        }
+      }
+    },
+    "field_mapping": {
+      "type": "object",
+      "description": "Maps a single field between the unified model and the PSP's API.",
+      "required": ["from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "Source field path using dot-notation. Prefix with '$response.' for PSP response fields, '$unified.' for unified model fields."
+        },
+        "to": {
+          "type": "string",
+          "description": "Target field path using dot-notation."
+        },
+        "use_mapping": {
+          "type": "string",
+          "description": "Reference to a top-level mapping section (e.g., 'status_mappings', 'error_mappings') to transform the value."
+        },
+        "default": {
+          "description": "Default value if the source field is absent."
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "description": "Maps a unified payment operation to a PSP API call.",
+      "required": ["method", "path"],
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+        },
+        "path": {
+          "type": "string",
+          "description": "URL path appended to the base URL. Use {param} for path parameters."
+        },
+        "request_mapping": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field_mapping"
+          },
+          "description": "How unified request fields map to PSP request fields."
+        },
+        "response_mapping": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field_mapping"
+          },
+          "description": "How PSP response fields map back to the unified response model."
+        }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "description": "Unified payment operations and their PSP-specific implementations.",
+      "additionalProperties": false,
+      "properties": {
+        "authorize": {
+          "$ref": "#/$defs/operation",
+          "description": "Create and authorize a payment."
+        },
+        "capture": {
+          "$ref": "#/$defs/operation",
+          "description": "Capture a previously authorized payment."
+        },
+        "get": {
+          "$ref": "#/$defs/operation",
+          "description": "Retrieve payment details."
+        },
+        "confirm": {
+          "$ref": "#/$defs/operation",
+          "description": "Submit additional details (e.g., 3DS result) to finalize a payment."
+        },
+        "refund": {
+          "$ref": "#/$defs/operation",
+          "description": "Refund a captured payment."
+        },
+        "cancel": {
+          "$ref": "#/$defs/operation",
+          "description": "Cancel / void a payment before capture."
+        }
+      }
+    },
+    "status_mappings": {
+      "type": "object",
+      "description": "Maps PSP-specific status strings to unified status values.",
+      "additionalProperties": {
+        "type": "string",
+        "enum": [
+          "authorized",
+          "declined",
+          "error",
+          "cancelled",
+          "pending",
+          "action_required",
+          "partially_authorized",
+          "captured",
+          "refunded",
+          "voided",
+          "received"
+        ]
+      }
+    },
+    "error_mappings": {
+      "type": "object",
+      "description": "Maps PSP error responses to unified error categories.",
+      "required": ["source_field", "categories"],
+      "additionalProperties": false,
+      "properties": {
+        "source_field": {
+          "type": "string",
+          "description": "Dot-notation path to the error code in the PSP's response body (e.g., 'refusalReasonCode', 'error_codes[0]')."
+        },
+        "categories": {
+          "type": "object",
+          "description": "Unified error categories, each containing an array of PSP codes that map to it.",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["codes"],
+            "additionalProperties": false,
+            "properties": {
+              "codes": {
+                "type": "array",
+                "items": {
+                  "type": ["string", "number"]
+                },
+                "description": "PSP-specific error codes that belong to this category."
+              }
+            }
+          }
+        },
+        "http_errors": {
+          "type": "object",
+          "description": "Maps HTTP status codes to unified error categories.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "amount_format": {
+      "type": "object",
+      "description": "How this PSP expects monetary amounts.",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["minor_units", "major_units"],
+          "description": "'minor_units' means cents (1000 = $10.00). 'major_units' means dollars (10.00 = $10.00)."
+        },
+        "zero_decimal_currencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Currency codes where 1 unit = 1 minor unit (e.g., JPY, KRW)."
+        },
+        "three_decimal_currencies": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Currency codes that use 3 decimal places (e.g., BHD, KWD)."
+        }
+      }
+    },
+    "recurring": {
+      "type": "object",
+      "description": "Maps unified recurring payment types to PSP-specific values.",
+      "additionalProperties": false,
+      "properties": {
+        "unified_to_psp": {
+          "type": "object",
+          "description": "Maps each unified recurring type to the PSP's string value.",
+          "additionalProperties": {
+            "type": ["string", "null"]
+          }
+        },
+        "psp_field": {
+          "type": "string",
+          "description": "Dot-notation path where the recurring type is placed in the PSP request."
+        }
+      }
+    },
+    "three_ds": {
+      "type": "object",
+      "description": "3D Secure field mappings for this PSP.",
+      "additionalProperties": false,
+      "properties": {
+        "request_fields": {
+          "type": "object",
+          "description": "Maps unified 3DS fields to PSP request field paths.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "response_fields": {
+          "type": "object",
+          "description": "Maps PSP 3DS response fields back to unified fields.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "setup": {
+      "type": "object",
+      "description": "Onboarding instructions for developers integrating this PSP.",
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Ordered list of setup instructions."
+        },
+        "required_env_vars": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Environment variables that must be set."
+        },
+        "optional_env_vars": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Environment variables that are optional but useful."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,351 @@
+{
+  "$schema": "../schema/psp-mapping.schema.json",
+  "version": "1.0.0",
+  "psp": {
+    "name": "checkout",
+    "display_name": "Checkout.com",
+    "base_urls": {
+      "test": "https://api.sandbox.checkout.com",
+      "live": "https://api.checkout.com"
+    },
+    "api_version": "v3",
+    "docs_url": "https://www.checkout.com/docs/payments",
+    "content_type": "application/json",
+    "idempotency_header": "Cko-Idempotency-Key"
+  },
+  "authentication": {
+    "type": "bearer_token",
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "config_fields": [
+      {
+        "name": "secret_key",
+        "description": "Checkout.com secret API key (sk_sbox_... or sk_...)",
+        "required": true,
+        "env_var": "CHECKOUT_SECRET_KEY"
+      },
+      {
+        "name": "processing_channel_id",
+        "description": "Processing channel ID from Checkout.com dashboard",
+        "required": true,
+        "env_var": "CHECKOUT_PROCESSING_CHANNEL_ID"
+      },
+      {
+        "name": "bt_api_key",
+        "description": "Basis Theory API key for proxy requests",
+        "required": false,
+        "env_var": "BT_API_KEY"
+      }
+    ]
+  },
+  "source_types": {
+    "raw_pan": {
+      "request_transform": {
+        "source.type": "card",
+        "source.number": "{{source.number}}",
+        "source.expiry_month": "{{source.expiry_month}}",
+        "source.expiry_year": "{{source.expiry_year}}",
+        "source.cvv": "{{source.cvc}}",
+        "source.name": "{{source.holder_name}}",
+        "source.store_for_future_use": "{{source.store_with_provider}}"
+      },
+      "requires_pci": true
+    },
+    "basis_theory_token": {
+      "request_transform": {
+        "source.type": "card",
+        "source.number": "{{ token: {{source.id}} | json: '$.data.number' }}",
+        "source.expiry_month": "{{ token: {{source.id}} | json: '$.data.expiration_month' }}",
+        "source.expiry_year": "{{ token: {{source.id}} | json: '$.data.expiration_year' }}",
+        "source.cvv": "{{ token: {{source.id}} | json: '$.data.cvc' }}",
+        "source.name": "{{source.holder_name}}",
+        "source.store_for_future_use": "{{source.store_with_provider}}"
+      },
+      "detokenization_strategy": "basis_theory_proxy",
+      "proxy_config": {
+        "transform_expression_prefix": "token",
+        "card_field_mappings": {
+          "number": "source.number",
+          "expiry_month": "source.expiry_month",
+          "expiry_year": "source.expiry_year",
+          "cvc": "source.cvv"
+        }
+      }
+    },
+    "basis_theory_token_intent": {
+      "request_transform": {
+        "source.type": "card",
+        "source.number": "{{ token_intent: {{source.id}} | json: '$.data.number' }}",
+        "source.expiry_month": "{{ token_intent: {{source.id}} | json: '$.data.expiration_month' }}",
+        "source.expiry_year": "{{ token_intent: {{source.id}} | json: '$.data.expiration_year' }}",
+        "source.cvv": "{{ token_intent: {{source.id}} | json: '$.data.cvc' }}",
+        "source.name": "{{source.holder_name}}",
+        "source.store_for_future_use": "{{source.store_with_provider}}"
+      },
+      "detokenization_strategy": "basis_theory_proxy",
+      "proxy_config": {
+        "transform_expression_prefix": "token_intent",
+        "card_field_mappings": {
+          "number": "source.number",
+          "expiry_month": "source.expiry_month",
+          "expiry_year": "source.expiry_year",
+          "cvc": "source.cvv"
+        }
+      }
+    },
+    "network_token": {
+      "request_transform": {
+        "source.type": "network_token",
+        "source.token": "{{source.number}}",
+        "source.expiry_month": "{{source.expiry_month}}",
+        "source.expiry_year": "{{source.expiry_year}}",
+        "source.cryptogram": "{{source.cryptogram}}",
+        "source.eci": "{{source.eci}}",
+        "source.token_type": "{{source.token_type}}"
+      }
+    },
+    "processor_token": {
+      "request_transform": {
+        "source.type": "id",
+        "source.id": "{{source.id}}"
+      }
+    }
+  },
+  "operations": {
+    "authorize": {
+      "method": "POST",
+      "path": "/payments",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount" },
+        { "from": "$unified.amount.currency", "to": "currency" },
+        { "from": "$unified.capture", "to": "capture", "default": false },
+        { "from": "$unified.reference", "to": "reference" },
+        { "from": "$unified.merchant_initiated", "to": "merchant_initiated" },
+        { "from": "$config.processing_channel_id", "to": "processing_channel_id" },
+        { "from": "$unified.customer.first_name", "to": "customer.name" },
+        { "from": "$unified.customer.email", "to": "customer.email" },
+        { "from": "$unified.customer.address.address_line1", "to": "source.billing_address.address_line1" },
+        { "from": "$unified.customer.address.address_line2", "to": "source.billing_address.address_line2" },
+        { "from": "$unified.customer.address.city", "to": "source.billing_address.city" },
+        { "from": "$unified.customer.address.state", "to": "source.billing_address.state" },
+        { "from": "$unified.customer.address.zip", "to": "source.billing_address.zip" },
+        { "from": "$unified.customer.address.country", "to": "source.billing_address.country" },
+        { "from": "$unified.statement_description.name", "to": "billing_descriptor.name" },
+        { "from": "$unified.statement_description.city", "to": "billing_descriptor.city" },
+        { "from": "$unified.metadata", "to": "metadata" },
+        { "from": "$unified.previous_network_transaction_id", "to": "previous_payment_id" }
+      ],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.reference", "to": "reference" },
+        { "from": "$response.amount", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.status", "to": "status_provider_code" },
+        { "from": "$response.response_code", "to": "response_code", "use_mapping": "error_mappings" },
+        { "from": "$response.source.id", "to": "source.provisioned.id" },
+        { "from": "$response.scheme_id", "to": "network_transaction_id" },
+        { "from": "$response.processed_on", "to": "created_at" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "capture": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/captures",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount" },
+        { "from": "$unified.amount.currency", "to": "currency" },
+        { "from": "$unified.reference", "to": "reference" }
+      ],
+      "response_mapping": [
+        { "from": "$response.action_id", "to": "id" },
+        { "from": "$response.reference", "to": "reference" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "get": {
+      "method": "GET",
+      "path": "/payments/{transaction_id}",
+      "request_mapping": [],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.amount", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "confirm": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/confirm",
+      "request_mapping": [],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "refund": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/refunds",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount" },
+        { "from": "$unified.amount.currency", "to": "currency" },
+        { "from": "$unified.reference", "to": "reference" }
+      ],
+      "response_mapping": [
+        { "from": "$response.action_id", "to": "id" },
+        { "from": "$response.reference", "to": "reference" },
+        { "from": "$response.amount", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "cancel": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/voids",
+      "request_mapping": [
+        { "from": "$unified.reference", "to": "reference" }
+      ],
+      "response_mapping": [
+        { "from": "$response.action_id", "to": "id" },
+        { "from": "$response.reference", "to": "reference" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    }
+  },
+  "status_mappings": {
+    "Authorized": "authorized",
+    "Pending": "pending",
+    "Card Verified": "authorized",
+    "Declined": "declined",
+    "Retry Scheduled": "pending",
+    "Captured": "captured",
+    "Partially Captured": "captured",
+    "Refunded": "refunded",
+    "Partially Refunded": "refunded",
+    "Voided": "voided",
+    "Canceled": "cancelled",
+    "Expired": "cancelled"
+  },
+  "error_mappings": {
+    "source_field": "response_code",
+    "categories": {
+      "card_declined": {
+        "codes": ["20005", "20108", "card_authorization_failed", "processing_error"]
+      },
+      "insufficient_funds": {
+        "codes": ["20051", "20061", "20065", "30021", "amount_exceeds_balance", "amount_limit_exceeded", "velocity_amount_limit_exceeded", "velocity_count_limit_exceeded"]
+      },
+      "expired_card": {
+        "codes": ["20054", "30033", "card_expired"]
+      },
+      "invalid_card": {
+        "codes": ["20014", "20039", "20052", "20053", "20056", "20083", "20087", "20100", "20179", "30015", "30046", "card_expiry_month_invalid", "card_expiry_month_required", "card_expiry_year_invalid", "card_expiry_year_required", "expiry_date_format_invalid", "card_not_found", "card_number_invalid", "card_number_required"]
+      },
+      "cvc_declined": {
+        "codes": ["20082", "20124", "cvv_invalid"]
+      },
+      "blocked_card": {
+        "codes": ["20004", "20067", "20078", "30004", "30007", "30041", "card_disabled"]
+      },
+      "fraud_detected": {
+        "codes": ["20059", "20063", "20183", "30034", "30043", "40101", "40201", "40202", "40203", "40204", "40205", "41101", "41201", "41202", "41203", "41204", "41205", "41206", "41301", "42101", "42201", "42202", "42203", "42204", "42206", "42301", "43101", "43102", "43201", "43202", "43203", "43204", "43205", "43206", "43301"]
+      },
+      "three_ds_failed": {
+        "codes": ["20150", "20151", "20152", "20153", "20155", "20159", "3ds_malfunction", "3ds_not_enabled_for_card", "3ds_not_supported", "3ds_not_configured", "3ds_payment_required", "3ds_version_invalid", "3ds_version_not_supported"]
+      },
+      "issuer_unavailable": {
+        "codes": ["20091", "issuer_network_unavailable"]
+      },
+      "not_supported": {
+        "codes": ["20015", "20031", "20040", "20057", "20058", "20081", "20093", "20103", "20106", "20122", "20156", "20182", "30016", "30017", "30018", "30019", "30044", "30045", "card_not_eligible_domestic_money_transfer", "card_not_eligible_cross_border_money_transfer", "card_not_eligible_domestic_non_money_transfer", "card_not_eligible_cross_border_non_money_transfer", "card_not_eligible_domestic_online_gambling", "card_not_eligible_cross_border_online_gambling", "payment_method_not_supported"]
+      },
+      "acquirer_error": {
+        "codes": ["20022", "20068", "20086", "20090", "20092", "20096"]
+      },
+      "pin_error": {
+        "codes": ["20038", "20055", "20075", "30038"]
+      },
+      "cancelled_by_shopper": {
+        "codes": ["20017", "20019", "payment_expired"]
+      },
+      "avs_declined": {
+        "codes": ["address_invalid", "city_invalid", "country_address_invalid", "country_invalid", "country_phone_code_invalid", "country_phone_code_length_invalid", "phone_number_invalid", "phone_number_length_invalid", "zip_invalid"]
+      },
+      "authentication_error": {
+        "codes": ["20154", "44301", "action_failure_limit_exceeded"]
+      },
+      "validation_error": {
+        "codes": ["20006", "20013", "20030", "20042", "30020", "amount_invalid", "currency_invalid", "currency_required", "request_invalid", "request_json_invalid", "parameter_invalid"]
+      },
+      "psp_error": {
+        "codes": ["20157", "20117", "processing_channel_id_required", "source_token_invalid"]
+      },
+      "unknown": {
+        "codes": ["20001", "20002", "20003", "20009", "20012", "20016", "20018", "20020", "20021", "20023", "20024", "20025", "20026", "20027", "20028", "20029", "20032", "20033", "20046", "20060", "20062", "20064", "20066", "20072", "20084", "20085", "20088", "20089", "20094", "20095", "20097", "20098", "20099", "20107", "20109", "20110", "20111", "20113", "20115", "20116", "20118", "20119", "20120", "20121", "20123", "20158", "20193", "20197", "30022", "30035", "30036", "30037"]
+      }
+    },
+    "http_errors": {
+      "401": "authentication_error",
+      "403": "authentication_error",
+      "404": "psp_error",
+      "422": "validation_error",
+      "429": "rate_limit",
+      "500": "psp_error",
+      "502": "psp_error"
+    }
+  },
+  "amount_format": {
+    "type": "minor_units",
+    "zero_decimal_currencies": [
+      "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW",
+      "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"
+    ],
+    "three_decimal_currencies": [
+      "BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"
+    ]
+  },
+  "recurring": {
+    "unified_to_psp": {
+      "one_time": "Regular",
+      "card_on_file": "CardOnFile",
+      "subscription": "Recurring",
+      "unscheduled": "Unscheduled"
+    },
+    "psp_field": "payment_type"
+  },
+  "three_ds": {
+    "request_fields": {
+      "authentication_value": "3ds.cryptogram",
+      "eci": "3ds.eci",
+      "ds_transaction_id": "3ds.xid",
+      "threeds_version": "3ds.version",
+      "authentication_status_code": "3ds.status",
+      "authentication_status_reason_code": "3ds.status_reason_code",
+      "challenge_preference_code": "3ds.challenge_indicator"
+    },
+    "response_fields": {
+      "3ds.cryptogram": "authentication_value",
+      "3ds.eci": "eci",
+      "3ds.xid": "ds_transaction_id",
+      "3ds.version": "threeds_version"
+    }
+  },
+  "setup": {
+    "steps": [
+      "Create a Checkout.com sandbox account at https://www.checkout.com/get-test-account",
+      "Get your secret key (sk_sbox_...) from the dashboard",
+      "Note your processing channel ID from Settings → Channels",
+      "For Basis Theory proxy: create a BT account and get an API key",
+      "Set environment variables (see required_env_vars)"
+    ],
+    "required_env_vars": [
+      "CHECKOUT_SECRET_KEY",
+      "CHECKOUT_PROCESSING_CHANNEL_ID"
+    ],
+    "optional_env_vars": [
+      "BT_API_KEY"
+    ]
+  }
+}

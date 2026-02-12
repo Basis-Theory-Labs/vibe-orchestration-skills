@@ -1,0 +1,362 @@
+{
+  "$schema": "../schema/psp-mapping.schema.json",
+  "version": "1.0.0",
+  "psp": {
+    "name": "adyen",
+    "display_name": "Adyen",
+    "base_urls": {
+      "test": "https://checkout-test.adyen.com/v71",
+      "live": "https://{{production_prefix}}-checkout-live.adyenpayments.com/checkout/v71"
+    },
+    "api_version": "v71",
+    "docs_url": "https://docs.adyen.com/api-explorer/Checkout/71/overview",
+    "content_type": "application/json",
+    "idempotency_header": "Idempotency-Key"
+  },
+  "authentication": {
+    "type": "api_key",
+    "header_name": "X-API-Key",
+    "config_fields": [
+      {
+        "name": "api_key",
+        "description": "Adyen API key from Customer Area → Developers → API credentials",
+        "required": true,
+        "env_var": "ADYEN_API_KEY"
+      },
+      {
+        "name": "merchant_account",
+        "description": "Adyen merchant account name",
+        "required": true,
+        "env_var": "ADYEN_MERCHANT_ACCOUNT"
+      },
+      {
+        "name": "production_prefix",
+        "description": "Live URL prefix from Customer Area → Developers → API URLs",
+        "required": false,
+        "env_var": "ADYEN_PRODUCTION_PREFIX"
+      },
+      {
+        "name": "bt_api_key",
+        "description": "Basis Theory API key for proxy requests",
+        "required": false,
+        "env_var": "BT_API_KEY"
+      }
+    ]
+  },
+  "source_types": {
+    "raw_pan": {
+      "request_transform": {
+        "paymentMethod.type": "scheme",
+        "paymentMethod.number": "{{source.number}}",
+        "paymentMethod.expiryMonth": "{{source.expiry_month}}",
+        "paymentMethod.expiryYear": "{{source.expiry_year}}",
+        "paymentMethod.cvc": "{{source.cvc}}",
+        "paymentMethod.holderName": "{{source.holder_name}}"
+      },
+      "requires_pci": true
+    },
+    "basis_theory_token": {
+      "request_transform": {
+        "paymentMethod.type": "scheme",
+        "paymentMethod.number": "{{ token: {{source.id}} | json: '$.data.number' }}",
+        "paymentMethod.expiryMonth": "{{ token: {{source.id}} | json: '$.data.expiration_month' }}",
+        "paymentMethod.expiryYear": "{{ token: {{source.id}} | json: '$.data.expiration_year' }}",
+        "paymentMethod.cvc": "{{ token: {{source.id}} | json: '$.data.cvc' }}",
+        "paymentMethod.holderName": "{{source.holder_name}}"
+      },
+      "detokenization_strategy": "basis_theory_proxy",
+      "proxy_config": {
+        "transform_expression_prefix": "token",
+        "card_field_mappings": {
+          "number": "paymentMethod.number",
+          "expiry_month": "paymentMethod.expiryMonth",
+          "expiry_year": "paymentMethod.expiryYear",
+          "cvc": "paymentMethod.cvc"
+        }
+      }
+    },
+    "basis_theory_token_intent": {
+      "request_transform": {
+        "paymentMethod.type": "scheme",
+        "paymentMethod.number": "{{ token_intent: {{source.id}} | json: '$.data.number' }}",
+        "paymentMethod.expiryMonth": "{{ token_intent: {{source.id}} | json: '$.data.expiration_month' }}",
+        "paymentMethod.expiryYear": "{{ token_intent: {{source.id}} | json: '$.data.expiration_year' }}",
+        "paymentMethod.cvc": "{{ token_intent: {{source.id}} | json: '$.data.cvc' }}",
+        "paymentMethod.holderName": "{{source.holder_name}}"
+      },
+      "detokenization_strategy": "basis_theory_proxy",
+      "proxy_config": {
+        "transform_expression_prefix": "token_intent",
+        "card_field_mappings": {
+          "number": "paymentMethod.number",
+          "expiry_month": "paymentMethod.expiryMonth",
+          "expiry_year": "paymentMethod.expiryYear",
+          "cvc": "paymentMethod.cvc"
+        }
+      }
+    },
+    "network_token": {
+      "request_transform": {
+        "paymentMethod.type": "networkToken",
+        "paymentMethod.number": "{{source.number}}",
+        "paymentMethod.expiryMonth": "{{source.expiry_month}}",
+        "paymentMethod.expiryYear": "{{source.expiry_year}}",
+        "mpiData.cavv": "{{source.cryptogram}}",
+        "mpiData.eci": "{{source.eci}}",
+        "mpiData.threeDSVersion": "{{source.threeds_version}}"
+      }
+    },
+    "processor_token": {
+      "request_transform": {
+        "paymentMethod.type": "scheme",
+        "paymentMethod.storedPaymentMethodId": "{{source.id}}"
+      }
+    }
+  },
+  "operations": {
+    "authorize": {
+      "method": "POST",
+      "path": "/payments",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount.value" },
+        { "from": "$unified.amount.currency", "to": "amount.currency" },
+        { "from": "$config.merchant_account", "to": "merchantAccount" },
+        { "from": "$unified.reference", "to": "reference" },
+        { "from": "$unified.merchant_initiated", "to": "shopperInteraction", "default": "Ecommerce" },
+        { "from": "$unified.source.store_with_provider", "to": "storePaymentMethod" },
+        { "from": "$unified.customer.channel", "to": "channel", "default": "web" },
+        { "from": "$unified.customer.reference", "to": "shopperReference" },
+        { "from": "$unified.customer.first_name", "to": "shopperName.firstName" },
+        { "from": "$unified.customer.last_name", "to": "shopperName.lastName" },
+        { "from": "$unified.customer.email", "to": "shopperEmail" },
+        { "from": "$unified.customer.address.address_line1", "to": "billingAddress.street" },
+        { "from": "$unified.customer.address.city", "to": "billingAddress.city" },
+        { "from": "$unified.customer.address.state", "to": "billingAddress.stateOrProvince" },
+        { "from": "$unified.customer.address.zip", "to": "billingAddress.postalCode" },
+        { "from": "$unified.customer.address.country", "to": "billingAddress.country" },
+        { "from": "$unified.statement_description.name", "to": "shopperStatement" },
+        { "from": "$unified.metadata", "to": "metadata" },
+        { "from": "$unified.previous_network_transaction_id", "to": "additionalData.networkTxReference" }
+      ],
+      "response_mapping": [
+        { "from": "$response.pspReference", "to": "id" },
+        { "from": "$response.merchantReference", "to": "reference" },
+        { "from": "$response.amount.value", "to": "amount.value" },
+        { "from": "$response.amount.currency", "to": "amount.currency" },
+        { "from": "$response.resultCode", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.resultCode", "to": "status_provider_code" },
+        { "from": "$response.refusalReasonCode", "to": "response_code", "use_mapping": "error_mappings" },
+        { "from": "$response.refusalReason", "to": "provider_error_message" },
+        { "from": "$response.additionalData.networkTxReference", "to": "network_transaction_id" },
+        { "from": "$response.paymentMethod.storedPaymentMethodId", "to": "source.provisioned.id" },
+        { "from": "$response.additionalData.recurring.recurringDetailReference", "to": "source.provisioned.id_fallback" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "capture": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/captures",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount.value" },
+        { "from": "$unified.amount.currency", "to": "amount.currency" },
+        { "from": "$config.merchant_account", "to": "merchantAccount" },
+        { "from": "$unified.reference", "to": "reference" }
+      ],
+      "response_mapping": [
+        { "from": "$response.pspReference", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "get": {
+      "method": "GET",
+      "path": "/payments/{transaction_id}",
+      "request_mapping": [],
+      "response_mapping": [
+        { "from": "$response.pspReference", "to": "id" },
+        { "from": "$response.resultCode", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.amount.value", "to": "amount.value" },
+        { "from": "$response.amount.currency", "to": "amount.currency" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "confirm": {
+      "method": "POST",
+      "path": "/payments/details",
+      "request_mapping": [
+        { "from": "$unified.details", "to": "details" },
+        { "from": "$unified.payment_data", "to": "paymentData" }
+      ],
+      "response_mapping": [
+        { "from": "$response.pspReference", "to": "id" },
+        { "from": "$response.resultCode", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.refusalReasonCode", "to": "response_code", "use_mapping": "error_mappings" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "refund": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/refunds",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount.value" },
+        { "from": "$unified.amount.currency", "to": "amount.currency" },
+        { "from": "$config.merchant_account", "to": "merchantAccount" },
+        { "from": "$unified.reference", "to": "reference" },
+        { "from": "$unified.reason", "to": "merchantRefundReason" }
+      ],
+      "response_mapping": [
+        { "from": "$response.pspReference", "to": "id" },
+        { "from": "$response.reference", "to": "reference" },
+        { "from": "$response.amount.value", "to": "amount.value" },
+        { "from": "$response.amount.currency", "to": "amount.currency" },
+        { "from": "$response.status", "to": "status" },
+        { "from": "$response.paymentPspReference", "to": "refunded_transaction_id" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "cancel": {
+      "method": "POST",
+      "path": "/payments/{transaction_id}/cancels",
+      "request_mapping": [
+        { "from": "$config.merchant_account", "to": "merchantAccount" },
+        { "from": "$unified.reference", "to": "reference" }
+      ],
+      "response_mapping": [
+        { "from": "$response.pspReference", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    }
+  },
+  "status_mappings": {
+    "Authorised": "authorized",
+    "Pending": "pending",
+    "pending": "pending",
+    "Error": "declined",
+    "Refused": "declined",
+    "Cancelled": "cancelled",
+    "cancelled": "cancelled",
+    "ChallengeShopper": "action_required",
+    "Received": "received",
+    "received": "received",
+    "PartiallyAuthorised": "partially_authorized",
+    "RedirectShopper": "action_required"
+  },
+  "error_mappings": {
+    "source_field": "refusalReasonCode",
+    "categories": {
+      "card_declined": {
+        "codes": ["2", "27"]
+      },
+      "insufficient_funds": {
+        "codes": ["12", "28", "29"]
+      },
+      "expired_card": {
+        "codes": ["6"]
+      },
+      "invalid_card": {
+        "codes": ["8"]
+      },
+      "cvc_declined": {
+        "codes": ["24"]
+      },
+      "blocked_card": {
+        "codes": ["5"]
+      },
+      "fraud_detected": {
+        "codes": ["14", "20", "22", "31"]
+      },
+      "three_ds_failed": {
+        "codes": ["11", "39", "42"]
+      },
+      "issuer_unavailable": {
+        "codes": ["9"]
+      },
+      "not_supported": {
+        "codes": ["10", "23"]
+      },
+      "acquirer_error": {
+        "codes": ["4"]
+      },
+      "pin_error": {
+        "codes": ["17", "18", "33", "36", "41", "43"]
+      },
+      "cancelled_by_shopper": {
+        "codes": ["15", "16"]
+      },
+      "avs_declined": {
+        "codes": ["32"]
+      },
+      "authentication_error": {
+        "codes": ["38", "92"]
+      },
+      "psp_error": {
+        "codes": ["46"]
+      },
+      "unknown": {
+        "codes": ["3", "7", "19", "21", "25", "26", "34", "35", "37", "40", "44", "45"]
+      }
+    },
+    "http_errors": {
+      "401": "authentication_error",
+      "403": "authentication_error",
+      "422": "validation_error",
+      "429": "rate_limit",
+      "500": "psp_error"
+    }
+  },
+  "amount_format": {
+    "type": "minor_units",
+    "zero_decimal_currencies": [
+      "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW",
+      "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF"
+    ],
+    "three_decimal_currencies": [
+      "BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND"
+    ]
+  },
+  "recurring": {
+    "unified_to_psp": {
+      "one_time": null,
+      "card_on_file": "CardOnFile",
+      "subscription": "Subscription",
+      "unscheduled": "UnscheduledCardOnFile"
+    },
+    "psp_field": "recurringProcessingModel"
+  },
+  "three_ds": {
+    "request_fields": {
+      "authentication_value": "mpiData.cavv",
+      "eci": "mpiData.eci",
+      "ds_transaction_id": "mpiData.dsTransID",
+      "directory_status_code": "mpiData.directoryResponse",
+      "authentication_status_code": "mpiData.authenticationResponse",
+      "threeds_version": "mpiData.threeDSVersion",
+      "challenge_cancel_reason_code": "mpiData.challengeCancel",
+      "challenge_preference_code": "threeDS2RequestData.threeDSRequestorChallengeInd"
+    },
+    "response_fields": {
+      "mpiData.cavv": "authentication_value",
+      "mpiData.eci": "eci",
+      "mpiData.dsTransID": "ds_transaction_id"
+    }
+  },
+  "setup": {
+    "steps": [
+      "Create an Adyen test account at https://www.adyen.com/signup",
+      "Navigate to Developers → API credentials in the Customer Area",
+      "Generate an API key and note your merchant account name",
+      "For Basis Theory proxy: create a BT account and get an API key",
+      "Set environment variables (see required_env_vars)",
+      "For production: get your live URL prefix from Developers → API URLs"
+    ],
+    "required_env_vars": [
+      "ADYEN_API_KEY",
+      "ADYEN_MERCHANT_ACCOUNT"
+    ],
+    "optional_env_vars": [
+      "ADYEN_PRODUCTION_PREFIX",
+      "BT_API_KEY"
+    ]
+  }
+}

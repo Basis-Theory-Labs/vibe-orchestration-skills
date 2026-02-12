@@ -1,0 +1,348 @@
+{
+  "$schema": "../schema/psp-mapping.schema.json",
+  "version": "1.0.0",
+  "psp": {
+    "name": "stripe",
+    "display_name": "Stripe",
+    "base_urls": {
+      "test": "https://api.stripe.com",
+      "live": "https://api.stripe.com"
+    },
+    "api_version": "2024-12-18.acacia",
+    "docs_url": "https://docs.stripe.com/api/payment_intents",
+    "content_type": "application/x-www-form-urlencoded",
+    "idempotency_header": "Idempotency-Key"
+  },
+  "authentication": {
+    "type": "bearer_token",
+    "header_name": "Authorization",
+    "header_prefix": "Bearer",
+    "config_fields": [
+      {
+        "name": "secret_key",
+        "description": "Stripe secret API key (sk_test_... for sandbox, sk_live_... for production)",
+        "required": true,
+        "env_var": "STRIPE_SECRET_KEY"
+      },
+      {
+        "name": "api_version",
+        "description": "Stripe API version sent via Stripe-Version header (e.g., 2024-12-18.acacia)",
+        "required": false,
+        "env_var": "STRIPE_API_VERSION"
+      },
+      {
+        "name": "bt_api_key",
+        "description": "Basis Theory API key for proxy requests",
+        "required": false,
+        "env_var": "BT_API_KEY"
+      }
+    ]
+  },
+  "source_types": {
+    "raw_pan": {
+      "request_transform": {
+        "payment_method_data.type": "card",
+        "payment_method_data.card.number": "{{source.number}}",
+        "payment_method_data.card.exp_month": "{{source.expiry_month}}",
+        "payment_method_data.card.exp_year": "{{source.expiry_year}}",
+        "payment_method_data.card.cvc": "{{source.cvc}}"
+      },
+      "requires_pci": true
+    },
+    "basis_theory_token": {
+      "request_transform": {
+        "payment_method_data.type": "card",
+        "payment_method_data.card.number": "{{ token: {{source.id}} | json: '$.data.number' }}",
+        "payment_method_data.card.exp_month": "{{ token: {{source.id}} | json: '$.data.expiration_month' }}",
+        "payment_method_data.card.exp_year": "{{ token: {{source.id}} | json: '$.data.expiration_year' }}",
+        "payment_method_data.card.cvc": "{{ token: {{source.id}} | json: '$.data.cvc' }}"
+      },
+      "detokenization_strategy": "basis_theory_proxy",
+      "proxy_config": {
+        "transform_expression_prefix": "token",
+        "card_field_mappings": {
+          "number": "payment_method_data.card.number",
+          "expiry_month": "payment_method_data.card.exp_month",
+          "expiry_year": "payment_method_data.card.exp_year",
+          "cvc": "payment_method_data.card.cvc"
+        }
+      }
+    },
+    "basis_theory_token_intent": {
+      "request_transform": {
+        "payment_method_data.type": "card",
+        "payment_method_data.card.number": "{{ token_intent: {{source.id}} | json: '$.data.number' }}",
+        "payment_method_data.card.exp_month": "{{ token_intent: {{source.id}} | json: '$.data.expiration_month' }}",
+        "payment_method_data.card.exp_year": "{{ token_intent: {{source.id}} | json: '$.data.expiration_year' }}",
+        "payment_method_data.card.cvc": "{{ token_intent: {{source.id}} | json: '$.data.cvc' }}"
+      },
+      "detokenization_strategy": "basis_theory_proxy",
+      "proxy_config": {
+        "transform_expression_prefix": "token_intent",
+        "card_field_mappings": {
+          "number": "payment_method_data.card.number",
+          "expiry_month": "payment_method_data.card.exp_month",
+          "expiry_year": "payment_method_data.card.exp_year",
+          "cvc": "payment_method_data.card.cvc"
+        }
+      }
+    },
+    "network_token": {
+      "request_transform": {
+        "payment_method_data.type": "card",
+        "payment_method_data.card.number": "{{source.number}}",
+        "payment_method_data.card.exp_month": "{{source.expiry_month}}",
+        "payment_method_data.card.exp_year": "{{source.expiry_year}}",
+        "payment_method_options.card.three_d_secure.cryptogram": "{{source.cryptogram}}",
+        "payment_method_options.card.three_d_secure.electronic_commerce_indicator": "{{source.eci}}",
+        "payment_method_options.card.three_d_secure.transaction_id": "{{source.ds_transaction_id}}",
+        "payment_method_options.card.three_d_secure.version": "{{source.threeds_version}}"
+      }
+    },
+    "processor_token": {
+      "request_transform": {
+        "payment_method": "{{source.id}}"
+      }
+    }
+  },
+  "operations": {
+    "authorize": {
+      "method": "POST",
+      "path": "/v1/payment_intents",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount" },
+        { "from": "$unified.amount.currency", "to": "currency" },
+        { "from": "$unified.confirm", "to": "confirm", "default": true },
+        { "from": "$unified.capture_method", "to": "capture_method", "default": "manual" },
+        { "from": "$unified.payment_method_types", "to": "payment_method_types", "default": ["card"] },
+        { "from": "$unified.reference", "to": "metadata.reference" },
+        { "from": "$unified.customer.reference", "to": "customer" },
+        { "from": "$unified.customer.email", "to": "receipt_email" },
+        { "from": "$unified.description", "to": "description" },
+        { "from": "$unified.merchant_initiated", "to": "off_session", "default": false },
+        { "from": "$unified.source.store_with_provider", "to": "setup_future_usage" },
+        { "from": "$unified.statement_description.name", "to": "statement_descriptor" },
+        { "from": "$unified.statement_description.suffix", "to": "statement_descriptor_suffix" },
+        { "from": "$unified.metadata", "to": "metadata" },
+        { "from": "$unified.return_url", "to": "return_url" },
+        { "from": "$unified.previous_network_transaction_id", "to": "payment_method_options.card.mit_exemption.network_transaction_id" }
+      ],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.metadata.reference", "to": "reference" },
+        { "from": "$response.amount", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.status", "to": "status_provider_code" },
+        { "from": "$response.last_payment_error.decline_code", "to": "response_code", "use_mapping": "error_mappings" },
+        { "from": "$response.last_payment_error.message", "to": "provider_error_message" },
+        { "from": "$response.latest_charge", "to": "charge_id" },
+        { "from": "$response.payment_method", "to": "source.provisioned.id" },
+        { "from": "$response.client_secret", "to": "client_secret" },
+        { "from": "$response.next_action.type", "to": "next_action_type" },
+        { "from": "$response.next_action.redirect_to_url.url", "to": "redirect_url" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "capture": {
+      "method": "POST",
+      "path": "/v1/payment_intents/{transaction_id}/capture",
+      "request_mapping": [
+        { "from": "$unified.amount.value", "to": "amount_to_capture" },
+        { "from": "$unified.statement_description.suffix", "to": "statement_descriptor_suffix" },
+        { "from": "$unified.metadata", "to": "metadata" }
+      ],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.amount_received", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "get": {
+      "method": "GET",
+      "path": "/v1/payment_intents/{transaction_id}",
+      "request_mapping": [],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.amount", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$response.latest_charge", "to": "charge_id" },
+        { "from": "$response.payment_method", "to": "payment_method_id" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "confirm": {
+      "method": "POST",
+      "path": "/v1/payment_intents/{transaction_id}/confirm",
+      "request_mapping": [
+        { "from": "$unified.payment_method", "to": "payment_method" },
+        { "from": "$unified.return_url", "to": "return_url" },
+        { "from": "$unified.error_on_requires_action", "to": "error_on_requires_action" }
+      ],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$response.last_payment_error.decline_code", "to": "response_code", "use_mapping": "error_mappings" },
+        { "from": "$response.last_payment_error.message", "to": "provider_error_message" },
+        { "from": "$response.next_action.type", "to": "next_action_type" },
+        { "from": "$response.next_action.redirect_to_url.url", "to": "redirect_url" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "refund": {
+      "method": "POST",
+      "path": "/v1/refunds",
+      "request_mapping": [
+        { "from": "$unified.transaction_id", "to": "payment_intent" },
+        { "from": "$unified.amount.value", "to": "amount" },
+        { "from": "$unified.reason", "to": "reason" },
+        { "from": "$unified.metadata", "to": "metadata" }
+      ],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.amount", "to": "amount.value" },
+        { "from": "$response.currency", "to": "amount.currency" },
+        { "from": "$response.status", "to": "status" },
+        { "from": "$response.payment_intent", "to": "refunded_transaction_id" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    },
+    "cancel": {
+      "method": "POST",
+      "path": "/v1/payment_intents/{transaction_id}/cancel",
+      "request_mapping": [
+        { "from": "$unified.reason", "to": "cancellation_reason" }
+      ],
+      "response_mapping": [
+        { "from": "$response.id", "to": "id" },
+        { "from": "$response.status", "to": "status", "use_mapping": "status_mappings" },
+        { "from": "$raw", "to": "full_provider_response" }
+      ]
+    }
+  },
+  "status_mappings": {
+    "requires_capture": "authorized",
+    "succeeded": "captured",
+    "requires_action": "action_required",
+    "requires_confirmation": "pending",
+    "processing": "pending",
+    "canceled": "cancelled",
+    "requires_payment_method": "declined"
+  },
+  "error_mappings": {
+    "source_field": "last_payment_error.decline_code",
+    "categories": {
+      "card_declined": {
+        "codes": [
+          "generic_decline", "do_not_honor", "call_issuer", "not_permitted",
+          "approve_with_id", "no_action_taken", "revocation_of_all_authorizations",
+          "revocation_of_authorization", "security_violation", "service_not_allowed",
+          "stop_payment_order", "transaction_not_allowed"
+        ]
+      },
+      "insufficient_funds": {
+        "codes": ["insufficient_funds", "card_velocity_exceeded", "withdrawal_count_limit_exceeded"]
+      },
+      "expired_card": {
+        "codes": ["expired_card"]
+      },
+      "invalid_card": {
+        "codes": [
+          "incorrect_number", "invalid_number", "invalid_account",
+          "invalid_expiry_month", "invalid_expiry_year", "invalid_amount",
+          "new_account_information_available"
+        ]
+      },
+      "cvc_declined": {
+        "codes": ["incorrect_cvc", "invalid_cvc"]
+      },
+      "blocked_card": {
+        "codes": ["restricted_card", "pickup_card", "lost_card", "stolen_card", "merchant_blacklist"]
+      },
+      "fraud_detected": {
+        "codes": ["fraudulent"]
+      },
+      "three_ds_failed": {
+        "codes": ["authentication_required", "authentication_not_handled"]
+      },
+      "issuer_unavailable": {
+        "codes": ["issuer_not_available", "reenter_transaction", "try_again_later"]
+      },
+      "not_supported": {
+        "codes": ["card_not_supported", "currency_not_supported"]
+      },
+      "pin_error": {
+        "codes": [
+          "incorrect_pin", "invalid_pin", "offline_pin_required",
+          "online_or_offline_pin_required", "pin_try_exceeded"
+        ]
+      },
+      "avs_declined": {
+        "codes": ["incorrect_address", "incorrect_zip"]
+      },
+      "psp_error": {
+        "codes": ["processing_error", "testmode_decline"]
+      },
+      "unknown": {
+        "codes": ["duplicate_transaction"]
+      }
+    },
+    "http_errors": {
+      "401": "authentication_error",
+      "403": "authentication_error",
+      "400": "validation_error",
+      "429": "rate_limit",
+      "500": "psp_error",
+      "502": "psp_error",
+      "503": "psp_error"
+    }
+  },
+  "amount_format": {
+    "type": "minor_units",
+    "zero_decimal_currencies": [
+      "BIF", "CLP", "DJF", "GNF", "ISK", "JPY", "KMF", "KRW",
+      "MGA", "PYG", "RWF", "UGX", "VND", "VUV", "XAF", "XOF", "XPF"
+    ]
+  },
+  "recurring": {
+    "unified_to_psp": {
+      "one_time": null,
+      "card_on_file": "off_session",
+      "subscription": "off_session",
+      "unscheduled": "off_session"
+    },
+    "psp_field": "setup_future_usage"
+  },
+  "three_ds": {
+    "request_fields": {
+      "authentication_value": "payment_method_options.card.three_d_secure.cryptogram",
+      "eci": "payment_method_options.card.three_d_secure.electronic_commerce_indicator",
+      "ds_transaction_id": "payment_method_options.card.three_d_secure.transaction_id",
+      "threeds_version": "payment_method_options.card.three_d_secure.version"
+    },
+    "response_fields": {
+      "next_action.type": "action_type",
+      "next_action.redirect_to_url.url": "redirect_url"
+    }
+  },
+  "setup": {
+    "steps": [
+      "Create a Stripe account at https://dashboard.stripe.com/register",
+      "Navigate to Developers → API keys in the Stripe Dashboard",
+      "Copy your secret key (sk_test_... for sandbox, sk_live_... for production)",
+      "For Basis Theory proxy: create a BT account and get an API key",
+      "Set environment variables (see required_env_vars)",
+      "Optionally set STRIPE_API_VERSION to pin a specific API version"
+    ],
+    "required_env_vars": [
+      "STRIPE_SECRET_KEY"
+    ],
+    "optional_env_vars": [
+      "STRIPE_API_VERSION",
+      "BT_API_KEY"
+    ]
+  }
+}
