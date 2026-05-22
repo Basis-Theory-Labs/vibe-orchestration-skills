@@ -22,7 +22,7 @@ Use when the user asks to:
 - target language for generated SDKs
 - selected PSP mappings
 - output directory
-- PSP docs or known integration notes
+- PSP knowledge or known integration notes
 
 ## Process
 
@@ -41,7 +41,7 @@ Depending on the ask, produce:
 - generated SDK files
 - an interactive demo
 - a mapping comparison
-- a concrete list of missing PSP documentation
+- a concrete list of missing PSP reference material
 
 ## References
 
@@ -49,5 +49,5 @@ Depending on the ask, produce:
 - `schema/psp-mapping.schema.json`
 - `mappings/`
 - `sdk-template/`
-- `docs/`
+- `knowledge/`
 - `agent-skills/`

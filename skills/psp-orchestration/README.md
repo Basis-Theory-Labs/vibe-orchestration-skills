@@ -46,7 +46,7 @@ sdk-template/                   # Language-agnostic SDK patterns
   client-pattern.md             # Provider interface pattern
   error-handling.md             # Error mapping logic
   language-adaptation.md        # Guide for adapting patterns to any language
-docs/                           # Schema reference, source types guide
+knowledge/                       # Schema reference, source types guide
 agent-skills/                   # Agent command files
 ```
 
@@ -113,11 +113,11 @@ A simplified look at how Adyen's authorize operation is mapped:
 }
 ```
 
-## Documentation
+## Knowledge
 
-- [Schema Reference](docs/schema-reference.md) — Every field in the mapping schema
-- [Source Types](docs/source-types.md) — Deep dive into the 5 source types
-- [Adding a PSP](docs/adding-a-psp.md) — Manual guide (or just use the skill)
+- [Schema Reference](knowledge/schema-reference.md) — Every field in the mapping schema
+- [Source Types](knowledge/source-types.md) — Deep dive into the 5 source types
+- [Adding a PSP](knowledge/adding-a-psp.md) — Manual guide (or just use the skill)
 
 ## Built With
 

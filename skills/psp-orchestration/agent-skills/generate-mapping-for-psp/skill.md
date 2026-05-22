@@ -53,7 +53,7 @@ Read these files to understand the schema and conventions:
 schema/psp-mapping.schema.json    # The schema the mapping must validate against
 mappings/adyen.json               # Reference mapping (complex PSP)
 mappings/checkout.json            # Reference mapping (different patterns)
-docs/source-types.md              # How to map the 5 source types
+knowledge/source-types.md              # How to map the 5 source types
 ```
 
 ### Step 4: Build the Mapping

@@ -39,4 +39,4 @@ control, and which investments accelerate the next step-change.
 5. Strategic bets
    - reduce single-processor risk
    - protect merchant-owned payment data
-   - use AI for anomaly detection, trend review, and payment-ops workflow
+   - use AI for anomaly detection, trend review, and payments operating workflow

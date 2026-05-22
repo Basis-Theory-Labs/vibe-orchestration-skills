@@ -36,7 +36,7 @@ We are experimenting with the second version:
 
 `director-of-payments-copilot`
 
-A lightweight payment-ops skill that can help turn metrics into WBR agendas,
+A deep payments leadership copilot that can help turn metrics into WBR agendas,
 QBR narratives, annual planning themes, and payment strategy prompts.
 
 Playbook:

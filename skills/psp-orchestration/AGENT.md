@@ -20,8 +20,8 @@ sdk-template/                     # Language-agnostic patterns for SDK generatio
   client-pattern.md               # Provider interface + client wrapper
   error-handling.md               # Error mapping logic
   language-adaptation.md          # Guide for adapting patterns to any language
-docs/                             # Human-readable documentation
-  schema-reference.md             # Field-by-field schema docs
+knowledge/                             # Human-readable reference material
+  schema-reference.md             # Field-by-field schema knowledge
   source-types.md                 # The 5 source types explained
   adding-a-psp.md                 # Manual guide for adding a PSP
 agent-skills/                   # Agent command files
@@ -64,7 +64,7 @@ Every mapping file describes how each of these payment source types is handled b
 ### `/generate-mapping-for-psp [psp-name]`
 
 Researches a PSP's payments API and creates a complete mapping file. The skill:
-1. Web-searches for the PSP's API docs, error codes, 3DS support, and network token format
+1. Web-searches for the PSP's API knowledge, error codes, 3DS support, and network token format
 2. Confirms integration details with the user
 3. Loads the schema and an existing mapping as reference
 4. Builds the mapping section by section
