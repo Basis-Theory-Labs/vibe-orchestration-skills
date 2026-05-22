@@ -1,132 +1,92 @@
-# PSP Orchestration Kit
+# Payment Skills
 
-> Declarative JSON mappings + Claude Code skills for generating payment processor integrations.
+Reusable agent skills for payment teams.
 
-## The Idea
+This repo turns payment expertise into working skill packs: prompts, domain models,
+runbooks, examples, schemas, and source material an AI agent can use to help with
+real payment work.
 
-Payment processors all do the same thing — authorize, capture, refund — but each one has a different API shape. This kit captures each PSP's API as a declarative mapping file, then uses Claude Code skills to generate working SDKs from those mappings.
+## Why This Exists
 
-**Three skills, any PSP, any language:**
+Most payment content is static. A PDF explains what to do, a diagram explains how
+the system works, and an internal doc explains what the team decided.
 
-```
-/generate-mapping-for-psp stripe             # Research & build a mapping file
-/generate-sdk python adyen,stripe ./my-sdk  # Generate a working SDK
-/build-demo                                 # Generate an interactive web demo
-```
+Payment teams need a more useful shape:
 
-## How It Works
+- Ask the operating cadence what to review on Monday morning.
+- Turn weekly metrics into a WBR agenda with owners.
+- Diagnose an authorization-rate drop by region, processor, method, and decline
+  reason.
+- Generate PSP mappings and SDKs from declarative integration specs.
+- Convert payment strategy into QBR and annual-planning narratives executives can
+  act on.
 
-```
-┌─────────────────────┐     ┌──────────────────┐     ┌─────────────────────┐     ┌─────────────────────┐
-│  PSP API Docs       │     │  Mapping File    │     │  Generated SDK      │     │  Interactive Demo   │
-│  (Adyen, Stripe..)  │────▶│  (JSON)          │────▶│  (Python, TS, ..)   │────▶│  (Web UI + Server)  │
-│                     │     │                  │     │                     │     │                     │
-└─────────────────────┘     └──────────────────┘     └─────────────────────┘     └─────────────────────┘
-    /generate-mapping-for-psp    Source of Truth        /generate-sdk               /build-demo
-```
+## Skill Packs
 
-Each mapping file declaratively describes:
-- **Authentication** — API keys, bearer tokens, header configuration
-- **Source types** — How raw cards, tokens, and network tokens map to PSP fields
-- **Operations** — authorize, capture, refund, cancel with full field mappings
-- **Status codes** — PSP-specific statuses mapped to a unified set
-- **Error codes** — Hundreds of PSP error codes categorized into unified types
-- **3D Secure** — Field mappings for 3DS authentication data
-- **Recurring** — Card-on-file, subscription, and unscheduled payment types
+```text
+skills/
+  director-of-payments-copilot/
+    SKILL.md
+    knowledge/
+    examples/
 
-## Repository Structure
+  psp-orchestration/
+    SKILL.md
+    mappings/
+    schema/
+    sdk-template/
+    agent-skills/
 
-```
-schema/psp-mapping.schema.json  # JSON Schema all mappings validate against
-mappings/
-  adyen.json                    # Complete Adyen mapping
-  checkout.json                 # Complete Checkout.com mapping
-sdk-template/                   # Language-agnostic SDK patterns
-  unified-types.md              # Universal payment models
-  client-pattern.md             # Provider interface pattern
-  error-handling.md             # Error mapping logic
-  language-adaptation.md        # Guide for adapting patterns to any language
-docs/                           # Schema reference, source types guide
-.claude/skills/                 # Claude Code skills
+  payment-ops-cadence-planner/
+    SKILL.md
+
+  auth-rate-diagnosis/
+    SKILL.md
+
+  payment-incident-commander/
+    SKILL.md
 ```
 
-## Quick Start
+## Current Skills
 
-### Prerequisites
+### Director of Payments Copilot
 
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI installed
-- This repo cloned locally
+Use the Director of Payments Playbook as an interactive operating model.
 
-### Create a Mapping for a New PSP
+Example asks:
 
-```bash
-cd psp-orchestration-kit
-claude
-# Then inside Claude Code:
-/generate-mapping-for-psp stripe
-```
+- `Build a Monday WBR agenda from these payment metrics.`
+- `Explain what changed this week in CFO language.`
+- `Separate controllable payment issues from external issuer behavior.`
+- `Turn these payment initiatives into QBR talking points.`
+- `Draft a three-year payments strategy from these constraints.`
 
-Claude will research Stripe's API, walk you through the mapping, and write `mappings/stripe.json`.
+Source: https://go.basistheory.com/resources/director-of-payments-playbook
 
-### Generate an SDK
+### PSP Orchestration
 
-```bash
-/generate-sdk python adyen,checkout ./output
-```
+The original PSP orchestration kit now lives under
+`skills/psp-orchestration/`. It contains declarative PSP mappings, a JSON schema,
+SDK generation templates, and agent command files for generating new PSP mappings,
+SDKs, and demos.
 
-Claude reads the mapping files, loads the SDK templates, and generates idiomatic Python code with unified models, per-PSP providers, and a client wrapper.
+## Planned Skills
 
-### Build an Interactive Demo
+- `payment-ops-cadence-planner` - generate daily, weekly, monthly, quarterly, and
+  annual payment operating cadences.
+- `auth-rate-diagnosis` - investigate authorization-rate drops and decline shifts.
+- `payment-incident-commander` - run payment incidents with severity, owners,
+  comms, and recovery checks.
 
-```bash
-/build-demo
-```
+## Examples
 
-Claude finds the generated SDK, detects its language, and generates a web-based demo app (HTTP server + single-page UI) in the same language. The demo lets you test authorize, capture, refund, and cancel flows against live PSP sandboxes, with a built-in Basis Theory tokenization tab.
+- `examples/director-of-payments-post.md` - post draft for introducing the
+  playbook as a skill, not just a PDF.
+- `docs/project-ideas.md` - follow-on project ideas for turning payment expertise
+  into interactive artifacts.
 
-## The 5 Source Types
+## Repository Rule
 
-Every mapping handles all five ways a card can be presented:
-
-| Source Type | What It Is | PCI Required? |
-|---|---|---|
-| `raw_pan` | Card number + expiry + CVC | Yes |
-| `basis_theory_token` | Stored Basis Theory token | No (proxy) |
-| `basis_theory_token_intent` | One-time Basis Theory token | No (proxy) |
-| `network_token` | Visa/MC network token + cryptogram | No |
-| `processor_token` | PSP's stored payment method | No |
-
-## Mapping File Example
-
-A simplified look at how Adyen's authorize operation is mapped:
-
-```json
-{
-  "operations": {
-    "authorize": {
-      "method": "POST",
-      "path": "/payments",
-      "request_mapping": [
-        { "from": "$unified.amount.value", "to": "amount.value" },
-        { "from": "$unified.amount.currency", "to": "amount.currency" },
-        { "from": "$config.merchant_account", "to": "merchantAccount" }
-      ],
-      "response_mapping": [
-        { "from": "$response.pspReference", "to": "id" },
-        { "from": "$response.resultCode", "to": "status", "use_mapping": "status_mappings" }
-      ]
-    }
-  }
-}
-```
-
-## Documentation
-
-- [Schema Reference](docs/schema-reference.md) — Every field in the mapping schema
-- [Source Types](docs/source-types.md) — Deep dive into the 5 source types
-- [Adding a PSP](docs/adding-a-psp.md) — Manual guide (or just use the skill)
-
-## Built With
-
-- [Basis Theory](https://basistheory.com) — Token vault and proxy for PCI-free card processing
-- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) — AI coding agent with skills support
+Each skill should be useful as a standalone folder. If an agent only has that
+folder, it should still understand the domain, know what inputs to ask for, and
+produce a concrete artifact.

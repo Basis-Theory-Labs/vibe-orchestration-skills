@@ -117,7 +117,7 @@ These are common pitfalls discovered during real PSP integrations. Research each
 ```
 User: /generate-mapping-for-psp stripe
 
-Claude: I'll research Stripe's Payments API to build a mapping file.
+Agent: I'll research Stripe's Payments API to build a mapping file.
 [researches Stripe's API docs, error codes, 3DS, network tokens...]
 
 Here's what I found about Stripe:
@@ -131,5 +131,5 @@ Should I proceed with building the mapping? Do you have any additional context?
 
 User: Yes, proceed. We use their PaymentIntents API.
 
-Claude: [builds mapping section by section, writes to mappings/stripe.json]
+Agent: [builds mapping section by section, writes to mappings/stripe.json]
 ```

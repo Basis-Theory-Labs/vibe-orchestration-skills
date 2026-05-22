@@ -1,10 +1,10 @@
 # PSP Orchestration Kit
 
-A toolkit for generating payment service provider (PSP) integrations using declarative JSON mapping files and Claude Code skills.
+A toolkit for generating payment service provider (PSP) integrations using declarative JSON mapping files and agent skills.
 
 ## What This Repo Does
 
-This repo contains everything Claude Code needs to:
+This skill pack contains everything an agent needs to:
 1. **Research a new PSP** and create a mapping file describing its payments API
 2. **Generate a working SDK** in any language from one or more mapping files
 
@@ -24,7 +24,7 @@ docs/                             # Human-readable documentation
   schema-reference.md             # Field-by-field schema docs
   source-types.md                 # The 5 source types explained
   adding-a-psp.md                 # Manual guide for adding a PSP
-.claude/skills/                   # Claude Code skills
+agent-skills/                   # Agent command files
   generate-mapping-for-psp/skill.md  # /generate-mapping-for-psp [psp-name]
   generate-sdk/skill.md           # /generate-sdk [language] [psp-names] [output-dir]
 ```
