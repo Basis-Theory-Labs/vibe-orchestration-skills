@@ -314,7 +314,7 @@ Use the `description` field from each config field as the comment. `BT_API_KEY` 
 ```
 User: /build-demo
 
-Claude: I'll generate an interactive demo app for the PSP Orchestration SDK.
+Agent: I'll generate an interactive demo app for the PSP Orchestration SDK.
 
 Found SDK at output/python-sdk/ (Python). Scanning providers...
 - Providers: AdyenProvider, StripeProvider, CheckoutProvider
@@ -324,7 +324,7 @@ I'll generate a Python demo server to ./output/demo-app/. Sound good?
 
 User: Yes
 
-Claude: [reads mapping files + provider configs, generates server.py, index.html, requirements.txt, .env.example]
+Agent: [reads mapping files + provider configs, generates server.py, index.html, requirements.txt, .env.example]
 [runs pip install]
 
 Demo app generated:
@@ -343,7 +343,7 @@ To run:
 ```
 User: /build-demo
 
-Claude: I found multiple SDKs in output/:
+Agent: I found multiple SDKs in output/:
   1. output/typescript-sdk/
   2. output/python-sdk/
 
@@ -351,19 +351,19 @@ Which SDK should I use for the demo?
 
 User: python-sdk
 
-Claude: Found SDK at output/python-sdk/ (Python). Scanning providers...
+Agent: Found SDK at output/python-sdk/ (Python). Scanning providers...
 ```
 
 **No SDK found:**
 ```
 User: /build-demo
 
-Claude: I couldn't find a generated SDK in the output/ directory.
+Agent: I couldn't find a generated SDK in the output/ directory.
 Where did you generate the SDK?
 
 User: It's at ~/projects/my-payment-sdk
 
-Claude: Found SDK at ~/projects/my-payment-sdk/ (Go). Scanning providers...
+Agent: Found SDK at ~/projects/my-payment-sdk/ (Go). Scanning providers...
 - Providers: StripeProvider, BraintreeProvider
 - Matching mappings: stripe.json, braintree.json
 

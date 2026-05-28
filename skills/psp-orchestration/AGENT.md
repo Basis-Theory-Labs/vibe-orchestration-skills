@@ -1,10 +1,10 @@
 # PSP Orchestration Kit
 
-A toolkit for generating payment service provider (PSP) integrations using declarative JSON mapping files and Claude Code skills.
+A toolkit for generating payment service provider (PSP) integrations using declarative JSON mapping files and agent skills.
 
 ## What This Repo Does
 
-This repo contains everything Claude Code needs to:
+This skill pack contains everything an agent needs to:
 1. **Research a new PSP** and create a mapping file describing its payments API
 2. **Generate a working SDK** in any language from one or more mapping files
 
@@ -20,11 +20,11 @@ sdk-template/                     # Language-agnostic patterns for SDK generatio
   client-pattern.md               # Provider interface + client wrapper
   error-handling.md               # Error mapping logic
   language-adaptation.md          # Guide for adapting patterns to any language
-docs/                             # Human-readable documentation
-  schema-reference.md             # Field-by-field schema docs
+knowledge/                             # Human-readable reference material
+  schema-reference.md             # Field-by-field schema knowledge
   source-types.md                 # The 5 source types explained
   adding-a-psp.md                 # Manual guide for adding a PSP
-.claude/skills/                   # Claude Code skills
+agent-skills/                   # Agent command files
   generate-mapping-for-psp/skill.md  # /generate-mapping-for-psp [psp-name]
   generate-sdk/skill.md           # /generate-sdk [language] [psp-names] [output-dir]
 ```
@@ -64,7 +64,7 @@ Every mapping file describes how each of these payment source types is handled b
 ### `/generate-mapping-for-psp [psp-name]`
 
 Researches a PSP's payments API and creates a complete mapping file. The skill:
-1. Web-searches for the PSP's API docs, error codes, 3DS support, and network token format
+1. Web-searches for the PSP's API knowledge, error codes, 3DS support, and network token format
 2. Confirms integration details with the user
 3. Loads the schema and an existing mapping as reference
 4. Builds the mapping section by section

@@ -123,7 +123,7 @@ Generate appropriate project scaffolding for the language. Use the project layou
 ```
 User: /generate-sdk typescript adyen,checkout ./my-payments-sdk
 
-Claude: I'll generate a TypeScript SDK with Adyen and Checkout.com support.
+Agent: I'll generate a TypeScript SDK with Adyen and Checkout.com support.
 
 Loading:
 - mappings/adyen.json (42 status mappings, 17 error categories)
